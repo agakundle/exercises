@@ -1,0 +1,62 @@
+%matplotlib notebook
+import matplotlib.pyplot as plt
+import mplleaflet
+import pandas as pd
+import datetime
+import numpy as np
+
+def play():
+    df = pd.read_csv('data/C2A2_data/BinnedCsvs_d400/fb441e62df2d58994928907a91895ec62c2c42e6cd075c2700843b89.csv')
+    df['Date']= pd.to_datetime(df.Date)
+    print(df.dtypes)
+    df.sort_values(by=['Date'], inplace=True)
+    df= df[~((df['Date'].dt.month == 2) & (df['Date'].dt.day == 29))]
+    df['Data_Value']= df['Data_Value'].apply(lambda x: x/10)
+    d2015 = df[df['Date'].dt.year == 2015]
+    df = df[df['Date'].dt.year != 2015]
+    
+    d2015 = d2015.pivot_table(values='Data_Value', index='Date', columns='Element', aggfunc=[np.max,np.min])
+    d2015.columns = ['max', 'ig', 'ig2','min']
+    d2015 = d2015.drop(['ig','ig2'],axis=1)
+    d2015 = d2015.reset_index()
+    d2015= d2015.drop(['Date'], axis=1)
+    d2015.columns = ['2015max', '2015min']
+
+    df = df.pivot_table(values='Data_Value', index='Date', columns='Element', aggfunc=[np.max,np.min])
+    df.columns = ['max', 'ig', 'ig2','min']
+    df = df.drop(['ig','ig2'],axis=1)
+    df = df.reset_index()
+    df = df.groupby(df['Date'].dt.strftime('%m-%d')).agg({'max': np.max, 'min': np.min}).reset_index()
+
+    dfm = pd.merge(df, d2015, how='outer', left_index=True, right_index=True)
+    dfm['2015a'] = np.where(dfm['2015max']> dfm['max'], dfm['2015max'], np.nan)
+    dfm['2015i'] = np.where(dfm['2015min']< dfm['min'], dfm['2015min'], np.nan)
+    
+    
+    
+    x=dfm.index.values
+    max = dfm['max'].values
+    min = dfm['min'].values
+    max15=dfm['2015a'].values
+    min15=dfm['2015i'].values
+    
+    plt.figure()
+    plt.plot(x, max, c = 'red', label ='Record high temperature 2005-2014')
+    plt.plot(min, c = 'blue', label ='Record low temperature 2005-2014')
+    plt.scatter(x, max15, s=10, c = 'black', label ='New record high temp 2015' )
+    plt.scatter(x, min15, s=10, c = 'black', label ='New record low temp 2015'  )
+    plt.gca().fill_between(range(len(max)), 
+                       max, min, 
+                       facecolor='blue', 
+                       alpha=0.15)
+    plt.ylim(-50, 50)
+    plt.xlim(0, 365)
+    plt.xlabel('Day of Year')
+    plt.ylabel('Temperature in C')
+    plt.title('Extreme temperatures of Ann Arbor, Michigan, United States')
+    plt.legend(loc = 8, frameon=False, fontsize=8)
+    
+    return plt.show()
+   
+    
+play()
