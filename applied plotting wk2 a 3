@@ -1,0 +1,79 @@
+%matplotlib notebook
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from matplotlib import cm
+import matplotlib.colors as col
+
+def play():
+    np.random.seed(12345)
+
+    df = pd.DataFrame([np.random.normal(32000,200000,3650), 
+                   np.random.normal(43000,100000,3650), 
+                   np.random.normal(43500,140000,3650), 
+                   np.random.normal(48000,70000,3650)], 
+                  index=[1992,1993,1994,1995])
+    
+# generate lists for the plots
+    
+    xvalues = list(df.index)
+    means = list(df.mean(axis=1))
+    std = list(df.std(axis=1))
+    
+# calculate the error bar and confidence intervals
+
+    n = len(df.columns)
+    yerr = std/np.sqrt(n) * 1.96
+    maxci = means + yerr
+    minci = means - yerr
+    
+# plot the first non-comparing version of the graph    
+        
+    plt.figure()
+    plt.bar(xvalues, means, align = 'center', yerr = yerr, color = "green" )
+    plt.title("Click on the graph to pick a y-value to compare to the bars")
+    plt.xticks(list(df.index), list(df.index))
+    
+# get color scalar and plot colorbar
+
+    cmap = cm.get_cmap('bwr')
+    cchoice = cm.ScalarMappable(cmap=cmap, norm=col.Normalize(vmin=0, vmax=1.0))
+    cchoice.set_array([])
+
+    plt.colorbar(cchoice, orientation="horizontal")
+    
+# function to get comparison results
+    
+    def calculates(ychoice, minci, maxci):
+        if ychoice < minci:
+            result = 1.0
+        elif ychoice > maxci:
+            result = 0.0
+        else:
+            result = (maxci - ychoice)/(maxci-minci)
+        return result
+
+#   event function
+    
+    def onclick(event):
+        plt.cla()
+    # plot horizontal line        
+        plt.axhline(y=event.ydata, zorder=0)
+    # call calculates function to get comparison results         
+        calcresults= [calculates(event.ydata, minci, maxci) for minci, maxci in zip(minci, maxci)]
+    # plot new bar graph using comparison results    
+        plt.bar(xvalues, means, align = 'center', yerr = yerr, color = cchoice.to_rgba(calcresults))
+    # create new dynamic title
+        ytitle= int(event.ydata)
+        plt.gca().set_title('You are comparing the bars with a y-value of {}'.format(ytitle))
+
+
+    # tell mpl_connect we want to pass a 'button_press_event' into onclick when the event is detected
+    plt.gcf().canvas.mpl_connect('button_press_event', onclick)
+
+
+    
+    return plt.show()
+
+play()
